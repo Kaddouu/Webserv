@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Webserv • Test</title>
+	<style>
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial, sans-serif;
+			background: #0f172a;
+			color: #e2e8f0;
+		}
+
+		main {
+			max-width: 760px;
+			margin: 6vh auto;
+			padding: 24px;
+			background: #111827;
+			border: 1px solid #ffffff18;
+			border-radius: 14px;
+		}
+
+		h1 {
+			margin: 0 0 10px;
+		}
+
+		p {
+			color: #94a3b8;
+		}
+
+		a {
+			color: #22d3ee;
+			text-decoration: none;
+		}
+
+		a:hover {
+			text-decoration: underline;
+		}
+
+		.box {
+			margin-top: 16px;
+			padding: 12px;
+			border-radius: 10px;
+			background: #0b1222;
+			border: 1px solid #23324a;
+		}
+
+		label {
+			display: block;
+			margin: 8px 0;
+		}
+
+		input[type="text"],
+		input[type="file"] {
+			padding: 6px 8px;
+			border-radius: 8px;
+			border: 1px solid #23324a;
+			background: #0b1222;
+			color: #e2e8f0;
+		}
+
+		input[type="file"] {
+			width: 100%;
+			margin-top: 4px;
+		}
+
+		button {
+			margin-right: 8px;
+			padding: 8px 12px;
+			border-radius: 8px;
+			border: 1px solid #23324a;
+			background: #0b1222;
+			color: #e2e8f0;
+			cursor: pointer;
+		}
+
+		button:hover {
+			background: #1e293b;
+		}
+
+		pre {
+			white-space: pre-wrap;
+			color: #cbd5e1;
+		}
+	</style>
+</head>
+
+<body>
+	<main>
+		<h1>Page de test</h1>
+		<p>Cette page est servie depuis <code>www/test.html</code>.</p>
+
+		<div class="box">
+			<p>Liens utiles :</p>
+			<ul>
+				<li><a href="/">Accueil</a></li>
+				<li><a href="/index.html">index.html</a></li>
+				<li><a href="/test.html">test.html</a></li>
+				<li><a href="/does-not-exist.html">404 (exemple)</a></li>
+				<li><a href="/forbidden">403 (exemple)</a></li>
+			</ul>
+		</div>
+
+		<!-- Tests d’erreurs -->
+		<div class="box">
+			<h2>Tester les erreurs</h2>
+			<p>Ces boutons utilisent fetch() pour afficher le code de statut et la réponse.</p>
+			<button type="button" id="btn404">GET /does-not-exist.html → 404</button>
+			<button type="button" id="btn403">GET /forbidden → 403</button>
+			<button type="button" id="btn400">GET (requête vide) → 400</button>
+			<button type="button" id="btn405">PUT / → 405</button>
+			<pre id="outErr"></pre>
+		</div>
+
+		<!-- Formulaire POST -->
+		<div class="box">
+			<h2>Tests POST</h2>
+			<p>Plusieurs variantes pour tester le serveur et le CGI.</p>
+
+			<!-- 1) application/x-www-form-urlencoded vers /post -->
+			<form id="postForm" method="POST" action="/post" style="margin-bottom:12px;">
+				<label>Message (urlencoded)
+					<input type="text" name="msg" value="Bonjour du navigateur" />
+				</label>
+				<button type="submit">Envoyer (submit)</button>
+				<button type="button" id="btnFetch">Envoyer (fetch)</button>
+			</form>
+			<pre id="out"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 2) application/x-www-form-urlencoded vers CGI /cgi-bin/post_test.py -->
+			<form id="postCgiUrlEnc" method="POST" action="/cgi-bin/post_test.py" style="margin-bottom:12px;">
+				<label>Username
+					<input type="text" name="username" value="sabry" />
+				</label>
+				<label>Password
+					<input type="text" name="password" value="1234" />
+				</label>
+				<button type="submit">CGI urlencoded (submit)</button>
+				<button type="button" id="btnCgiUrlEncFetch">CGI urlencoded (fetch)</button>
+			</form>
+			<pre id="outCgiUrlEnc"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 3) application/json vers /post -->
+			<form id="postJsonForm" onsubmit="return false;" style="margin-bottom:12px;">
+				<label>JSON payload
+					<input type="text" id="jsonInput" value='{"hello":"world","n":42}' />
+				</label>
+				<button type="button" id="btnJson">Envoyer JSON (fetch)</button>
+			</form>
+			<pre id="outJson"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 4) Corps vide vers /post -->
+			<form id="postEmptyForm" onsubmit="return false;" style="margin-bottom:12px;">
+				<button type="button" id="btnEmpty">Envoyer corps vide (fetch)</button>
+			</form>
+			<pre id="outEmpty"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 5) Gros payload (urlencoded) vers /post -->
+			<form id="postLargeForm" onsubmit="return false;" style="margin-bottom:12px;">
+				<label>Taille (KB)
+					<input type="text" id="largeSize" value="128" />
+				</label>
+				<button type="button" id="btnLarge">Envoyer gros payload</button>
+			</form>
+			<pre id="outLarge"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 6) Caractères spéciaux vers /api/test.txt (si accepté) -->
+			<form id="postSpecialForm" method="POST" action="/api/test.txt" style="margin-bottom:12px;">
+				<label>Texte avec caractères spéciaux
+					<input type="text" name="text" value="éèàç & : / ? # [ ] @ ! $ & ' ( ) * + , ; =" />
+				</label>
+				<button type="submit">Envoyer spéciaux (submit)</button>
+				<button type="button" id="btnSpecial">Envoyer spéciaux (fetch)</button>
+			</form>
+			<pre id="outSpecial"></pre>
+		</div>
+
+		<!-- Upload de fichiers -->
+		<div class="box">
+			<h2>Upload de fichiers</h2>
+			<form id="uploadForm" method="POST" action="/uploads" enctype="multipart/form-data">
+				<label>Choisir un fichier :
+					<input type="file" name="file" id="fileInput" required />
+				</label>
+				<button type="submit">Uploader le fichier</button>
+				<button type="button" id="btnUploadFetch">Uploader (fetch)</button>
+			</form>
+			<pre id="outUpload"></pre>
+			<p style="color:#64748b;margin-top:8px;">Le fichier sera sauvegardé dans le dossier uploads avec l'extension
+				préservée.</p>
+		</div>
+
+		<!-- Requête DELETE -->
+		<div class="box">
+			<h2>Tester une requête DELETE</h2>
+			<label>Chemin du fichier à supprimer
+				<input type="text" id="delPath" value="/delete-me.txt" />
+			</label>
+			<button type="button" id="btnDelete">Supprimer (DELETE)</button>
+			<pre id="outDel"></pre>
+			<p style="color:#64748b;margin-top:8px;">Astuce: créez d'abord un fichier à cet emplacement sous le dossier
+				root du serveur pour obtenir un 200. Sinon vous aurez 404.</p>
+		</div>
+	</main>
+
+	<script>
+		(function () {
+			var out = document.getElementById('out');
+			var outErr = document.getElementById('outErr');
+
+			// POST via fetch
+			var btn = document.getElementById('btnFetch');
+			var form = document.getElementById('postForm');
+			if (btn) btn.addEventListener('click', function () {
+				var msg = form.elements['msg'].value;
+				var body = 'msg=' + encodeURIComponent(msg);
+				fetch('/post', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						out.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) {
+					out.textContent = 'Erreur: ' + err;
+				});
+			});
+
+			// Upload via fetch
+			var btnUpload = document.getElementById('btnUploadFetch');
+			var uploadForm = document.getElementById('uploadForm');
+			var outUpload = document.getElementById('outUpload');
+			if (btnUpload) btnUpload.addEventListener('click', function () {
+				var fileInput = document.getElementById('fileInput');
+				var file = fileInput.files[0];
+
+				if (!file) {
+					outUpload.textContent = 'Veuillez sélectionner un fichier';
+					return;
+				}
+
+				var formData = new FormData();
+				formData.append('file', file);
+
+				fetch('/uploads', {
+					method: 'POST',
+					body: formData
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						outUpload.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) {
+					outUpload.textContent = 'Erreur: ' + err;
+				});
+			});
+
+			// CGI urlencoded via fetch
+			var btnCgiUrlEncFetch = document.getElementById('btnCgiUrlEncFetch');
+			var cgiForm = document.getElementById('postCgiUrlEnc');
+			var outCgiUrlEnc = document.getElementById('outCgiUrlEnc');
+			if (btnCgiUrlEncFetch) btnCgiUrlEncFetch.addEventListener('click', function () {
+				var username = cgiForm.elements['username'].value;
+				var password = cgiForm.elements['password'].value;
+				var body = 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password);
+				fetch('/cgi-bin/post_test.py', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						outCgiUrlEnc.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) {
+					outCgiUrlEnc.textContent = 'Erreur: ' + err;
+				});
+			});
+
+			// JSON via fetch
+			var btnJson = document.getElementById('btnJson');
+			var jsonInput = document.getElementById('jsonInput');
+			var outJson = document.getElementById('outJson');
+			if (btnJson) btnJson.addEventListener('click', function () {
+				var payload = jsonInput.value;
+				fetch('/post', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: payload
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						outJson.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) {
+					outJson.textContent = 'Erreur: ' + err;
+				});
+			});
+
+			// Corps vide via fetch
+			var btnEmpty = document.getElementById('btnEmpty');
+			var outEmpty = document.getElementById('outEmpty');
+			if (btnEmpty) btnEmpty.addEventListener('click', function () {
+				fetch('/post', { method: 'POST' }).then(function (res) {
+					return res.text().then(function (text) {
+						outEmpty.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) { outEmpty.textContent = 'Erreur: ' + err; });
+			});
+
+			// Gros payload via fetch (urlencoded)
+			var btnLarge = document.getElementById('btnLarge');
+			var largeSize = document.getElementById('largeSize');
+			var outLarge = document.getElementById('outLarge');
+			if (btnLarge) btnLarge.addEventListener('click', function () {
+				var kb = parseInt(largeSize.value, 10);
+				if (isNaN(kb) || kb <= 0) kb = 128;
+				var chunk = 'A'.repeat(1024);
+				var repeats = kb;
+				var big = '';
+				for (var i = 0; i < repeats; i++) big += chunk;
+				var body = 'data=' + encodeURIComponent(big);
+				fetch('/post', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						outLarge.textContent = 'Status: ' + res.status + ' (envoyé ~' + kb + 'KB)\n\n' + text;
+					});
+				}).catch(function (err) { outLarge.textContent = 'Erreur: ' + err; });
+			});
+
+			// Caractères spéciaux via fetch
+			var btnSpecial = document.getElementById('btnSpecial');
+			var outSpecial = document.getElementById('outSpecial');
+			var specialForm = document.getElementById('postSpecialForm');
+			if (btnSpecial) btnSpecial.addEventListener('click', function () {
+				var text = specialForm.elements['text'].value;
+				var body = 'text=' + encodeURIComponent(text);
+				fetch('/api/test.txt', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body
+				}).then(function (res) {
+					return res.text().then(function (t) {
+						outSpecial.textContent = 'Status: ' + res.status + '\n\n' + t;
+					});
+				}).catch(function (err) { outSpecial.textContent = 'Erreur: ' + err; });
+			});
+
+			// 404
+			var btn404 = document.getElementById('btn404');
+			if (btn404) btn404.addEventListener('click', function () {
+				fetch('/does-not-exist.html').then(function (res) {
+					return res.text().then(function (text) {
+						outErr.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) { outErr.textContent = 'Erreur: ' + err; });
+			});
+
+			// 403 (exige que le serveur réponde 403 pour /forbidden)
+			var btn403 = document.getElementById('btn403');
+			if (btn403) btn403.addEventListener('click', function () {
+				fetch('/forbidden').then(function (res) {
+					return res.text().then(function (text) {
+						outErr.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) { outErr.textContent = 'Erreur: ' + err; });
+			});
+
+			// 400: démo (souvent 404 ici)
+			var btn400 = document.getElementById('btn400');
+			if (btn400) btn400.addEventListener('click', function () {
+				fetch('/bad-request-sample').then(function (res) {
+					return res.text().then(function (text) {
+						outErr.textContent = 'Status: ' + res.status + ' (probablement 404 ici)\n\n' + text;
+					});
+				}).catch(function (err) { outErr.textContent = 'Erreur: ' + err; });
+			});
+
+			// 405: rendre la page au lieu d'afficher le code
+			var btn405 = document.getElementById('btn405');
+			if (btn405) btn405.addEventListener('click', function () {
+				fetch('/', { method: 'PUT' }).then(function (res) {
+					return res.text().then(function (html) {
+						document.open();
+						document.write(html);
+						document.close();
+					});
+				}).catch(function (err) { outErr.textContent = 'Erreur: ' + err; });
+			});
+
+			// DELETE
+			var btnDel = document.getElementById('btnDelete');
+			var inpDel = document.getElementById('delPath');
+			var outDel = document.getElementById('outDel');
+			if (btnDel) btnDel.addEventListener('click', function () {
+				var path = (inpDel && inpDel.value) ? inpDel.value : '/delete-me.txt';
+				fetch(path, { method: 'DELETE' }).then(function (res) {
+					return res.text().then(function (text) {
+						outDel.textContent = 'DELETE ' + path + '\nStatus: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) { outDel.textContent = 'Erreur: ' + err; });
+			});
+		})();
+	</script>
+</body>
+
+</html>
